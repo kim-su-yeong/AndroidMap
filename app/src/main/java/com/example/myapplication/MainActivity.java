@@ -3,6 +3,8 @@ package com.example.myapplication;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.PointF;
+import android.location.Address;
+import android.location.Geocoder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentManager;
@@ -11,30 +13,53 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.naver.maps.geometry.GeoConstants;
 import com.naver.maps.geometry.LatLng;
 import com.naver.maps.map.CameraPosition;
+import com.naver.maps.map.CameraUpdate;
+import com.naver.maps.map.LocationTrackingMode;
 import com.naver.maps.map.MapFragment;
 import com.naver.maps.map.MapView;
 import com.naver.maps.map.NaverMap;
 import com.naver.maps.map.NaverMapSdk;
 import com.naver.maps.map.OnMapReadyCallback;
+import com.naver.maps.map.overlay.InfoWindow;
+import com.naver.maps.map.overlay.LocationOverlay;
 import com.naver.maps.map.overlay.Marker;
+import com.naver.maps.map.overlay.OverlayImage;
 import com.naver.maps.map.overlay.PathOverlay;
 import com.naver.maps.map.overlay.PolygonOverlay;
+import com.naver.maps.map.util.FusedLocationSource;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     private MapView mapView;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1000;
+    private FusedLocationSource locationSource;
     private NaverMap naverMap;
     Spinner spinner_maptype;
     CheckBox check_mapcadastral;
+    int count = 0;
+    List<LatLng> polycoords = new ArrayList<>();
+    Marker clickmarker;
+    PolygonOverlay clickpolygon;
+    Button btnreset;
+    Button btncam;
+    List<Marker> markerall = new ArrayList<>();
+    List<PolygonOverlay> polygonall = new ArrayList<>();
+    
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,11 +82,29 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         check_mapcadastral = (CheckBox) findViewById(R.id.check_mapcadastral);
 
+        btnreset = (Button) findViewById(R.id.btnreset);
+        btncam = (Button) findViewById(R.id.btncam);
+
+        locationSource = new FusedLocationSource(this, LOCATION_PERMISSION_REQUEST_CODE);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,  @NonNull int[] grantResults) {
+        if (locationSource.onRequestPermissionsResult(
+                requestCode, permissions, grantResults)) {
+            if (!locationSource.isActivated()) { // 권한 거부됨
+                naverMap.setLocationTrackingMode(LocationTrackingMode.None);
+            }
+            return;
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
     @Override
     public void onMapReady(@NonNull NaverMap naverMap) {
         this.naverMap = naverMap;
+        naverMap.setLocationSource(locationSource);
+        naverMap.setLocationTrackingMode(LocationTrackingMode.NoFollow);
         naverMap.setMapType(NaverMap.MapType.Satellite);
 
         spinner_maptype.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -91,6 +134,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         CameraPosition cameraPosition = new CameraPosition(location, 15);
         naverMap.setCameraPosition(cameraPosition);
 
+
+        // 군산대학교, 군산시청, 군산항 다각형연결. 다각형 색 빨간(투명도 50%)
+
         // 군산대학교
         Marker marker = new Marker();
         marker.setPosition(new LatLng(35.944409, 126.682839));
@@ -117,7 +163,93 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         polygon.setOutlineColor(Color.RED);
         polygon.setMap(naverMap);
 
+
         naverMap.setOnMapClickListener((point, coord) ->
                 Toast.makeText(this, "위도 : " +coord.latitude + "\n경도 : " + coord.longitude, Toast.LENGTH_SHORT).show());
+        
+
+        naverMap.setOnMapClickListener(new NaverMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(PointF pointF, LatLng latLng) {
+                clickmarker = new Marker();
+                clickmarker.setPosition(new LatLng(latLng.latitude, latLng.longitude));
+                clickmarker.setMap(naverMap);
+                markerall.add(clickmarker);
+
+                clickpolygon = new PolygonOverlay();
+                polycoords.add(count, new LatLng(latLng.latitude, latLng.longitude));
+                //Toast.makeText(getApplicationContext(), "카운트 : " + count, Toast.LENGTH_SHORT).show();
+                clickpolygon.setColor(Color.parseColor("#50FF0000"));
+                clickpolygon.setOutlineWidth(4);
+                clickpolygon.setOutlineColor(Color.RED);
+                polygonall.add(clickpolygon);
+
+                count++;
+                //Toast.makeText(getApplicationContext(), "카운트 : " + count, Toast.LENGTH_SHORT).show();
+
+                if(count >= 3) {
+                    clickpolygon.setCoords(polycoords);
+                    clickpolygon.setMap(naverMap);
+                }
+            }
+        });
+        
+        btnreset.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                for(int i=0; i<markerall.size(); i++) {
+                    polygonall.get(i).setMap(null);
+                    markerall.get(i).setMap(null);
+                }
+            }
+        });
+
+        btncam.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                CameraUpdate cameraUpdate = CameraUpdate.scrollTo(new LatLng(35.968643, 126.709838));
+                cameraUpdate = CameraUpdate.zoomTo(11);
+                naverMap.moveCamera(cameraUpdate);
+            }
+        });
+
+        naverMap.setOnMapLongClickListener(new NaverMap.OnMapLongClickListener() {
+            @Override
+            public void onMapLongClick(@NonNull PointF pointF, @NonNull LatLng latLng) {
+                String latitude = String.valueOf(latLng.latitude);
+                String longitude = String.valueOf(latLng.longitude);
+                InfoWindow infoWindow = new InfoWindow();
+                Toast.makeText(getApplication(), "위도 : " +latLng.latitude + "\n경도 : " + latLng.longitude, Toast.LENGTH_SHORT).show();
+                Geocoder geocoder = new Geocoder(getApplicationContext());
+                List<Address> addressList = null;
+                try {
+                    if (geocoder != null) {
+                        addressList = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
+
+                        if(addressList != null && addressList.size()>0) {
+                            String currentLocationAddress = addressList.get(0).getAddressLine(0).toString();
+                            infoWindow.setAdapter(new InfoWindow.DefaultTextAdapter(getApplication()) {
+                                @NonNull
+                                @Override
+                                public CharSequence getText(@NonNull InfoWindow infoWindow) {
+                                    return currentLocationAddress;
+                                }
+                            });
+                            infoWindow.open(naverMap);
+                        }
+                    }
+                } catch (IOException e) {
+                    infoWindow.setAdapter(new InfoWindow.DefaultTextAdapter(getApplication()) {
+                        @NonNull
+                        @Override
+                        public CharSequence getText(@NonNull InfoWindow infoWindow) {
+                            return "주소가 없습니다.";
+                        }
+                    });
+                    infoWindow.open(naverMap);
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 }

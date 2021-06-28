@@ -30,6 +30,18 @@
             android:layout_height="wrap_content"
             android:background="#C8C8C8"
             tools:ignore="MissingConstraints" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btnreset"
+            android:text="오버레이 삭제" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btncam"
+            android:text="카메라 이동" />
     </LinearLayout>
 
 
