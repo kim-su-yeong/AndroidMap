@@ -1,5 +1,8 @@
 package com.example.myapplication;
 
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.PointF;
@@ -16,6 +19,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -53,12 +58,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     CheckBox check_mapcadastral;
     int count = 0;
     List<LatLng> polycoords = new ArrayList<>();
-    Marker clickmarker;
+    Marker clickmarker, infomarker, addressmarker;
     PolygonOverlay clickpolygon;
-    Button btnreset;
-    Button btncam;
+    Button btnreset, btncam, btndia;
     List<Marker> markerall = new ArrayList<>();
     List<PolygonOverlay> polygonall = new ArrayList<>();
+    InfoWindow infoWindow;
+    NaverGeocoding naverGeocoding;
     
 
     @Override
@@ -84,8 +90,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         btnreset = (Button) findViewById(R.id.btnreset);
         btncam = (Button) findViewById(R.id.btncam);
+        btndia = (Button) findViewById(R.id.btndia);
 
         locationSource = new FusedLocationSource(this, LOCATION_PERMISSION_REQUEST_CODE);
+
+        infomarker = new Marker();
+        addressmarker = new Marker();
+        infoWindow = new InfoWindow();
     }
 
     @Override
@@ -106,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         naverMap.setLocationSource(locationSource);
         naverMap.setLocationTrackingMode(LocationTrackingMode.NoFollow);
         naverMap.setMapType(NaverMap.MapType.Satellite);
+
 
         spinner_maptype.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -216,40 +228,51 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         naverMap.setOnMapLongClickListener(new NaverMap.OnMapLongClickListener() {
             @Override
             public void onMapLongClick(@NonNull PointF pointF, @NonNull LatLng latLng) {
-                String latitude = String.valueOf(latLng.latitude);
-                String longitude = String.valueOf(latLng.longitude);
-                InfoWindow infoWindow = new InfoWindow();
-                Toast.makeText(getApplication(), "위도 : " +latLng.latitude + "\n경도 : " + latLng.longitude, Toast.LENGTH_SHORT).show();
-                Geocoder geocoder = new Geocoder(getApplicationContext());
-                List<Address> addressList = null;
-                try {
-                    if (geocoder != null) {
-                        addressList = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
+                infomarker.setPosition(new LatLng(latLng.latitude, latLng.longitude));
+                infomarker.setMap(naverMap);
+                naverGeocoding = new NaverGeocoding(MainActivity.this);
 
-                        if(addressList != null && addressList.size()>0) {
-                            String currentLocationAddress = addressList.get(0).getAddressLine(0).toString();
-                            infoWindow.setAdapter(new InfoWindow.DefaultTextAdapter(getApplication()) {
-                                @NonNull
-                                @Override
-                                public CharSequence getText(@NonNull InfoWindow infoWindow) {
-                                    return currentLocationAddress;
-                                }
-                            });
-                            infoWindow.open(naverMap);
-                        }
-                    }
-                } catch (IOException e) {
-                    infoWindow.setAdapter(new InfoWindow.DefaultTextAdapter(getApplication()) {
-                        @NonNull
-                        @Override
-                        public CharSequence getText(@NonNull InfoWindow infoWindow) {
-                            return "주소가 없습니다.";
-                        }
-                    });
-                    infoWindow.open(naverMap);
-                    e.printStackTrace();
-                }
+                naverGeocoding.execute(infomarker.getPosition());
+                //Toast.makeText(getApplication(), address, Toast.LENGTH_SHORT).show();
             }
         });
+
+        btndia.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                View dialogView = (View) View.inflate(MainActivity.this, R.layout.dialog, null);
+
+                AlertDialog.Builder dlg = new AlertDialog.Builder(MainActivity.this);
+                dlg.setTitle("주소 입력 창");
+                dlg.setView(dialogView);
+                EditText dlgEdtAddress = (EditText) dialogView.findViewById(R.id.addressedit);
+                String address = dlgEdtAddress.getText().toString();
+                dlg.setPositiveButton("마커 찍기",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                Toast.makeText(getApplication(), address, Toast.LENGTH_SHORT).show();
+                                //addressmarker.setPosition();
+                                //addressmarker.setMap(naverMap);
+                            }
+                });
+                dlg.show();
+            }
+        });
+    }
+
+
+    void viewAddress(String address) {
+        //TODO infowindow에 메시지를 입력하는 부분 구현
+        infoWindow.setAdapter(new InfoWindow.DefaultTextAdapter(getApplication()) {
+            @NonNull
+            @Override
+            public CharSequence getText(@NonNull InfoWindow infoWindow) {
+                return address;
+            }
+        });
+
+        //Toast.makeText(getApplication(), address, Toast.LENGTH_SHORT).show();
+
+        infoWindow.open(infomarker);
     }
 }

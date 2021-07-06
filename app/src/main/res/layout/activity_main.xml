@@ -42,6 +42,12 @@
             android:layout_height="wrap_content"
             android:id="@+id/btncam"
             android:text="카메라 이동" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/btndia"
+            android:text="주소 입력" />
     </LinearLayout>
 
 
