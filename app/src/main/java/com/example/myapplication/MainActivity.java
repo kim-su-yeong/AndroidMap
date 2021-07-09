@@ -14,6 +14,7 @@ import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.view.textclassifier.TextClassifierEvent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -43,6 +44,8 @@ import com.naver.maps.map.overlay.PolygonOverlay;
 import com.naver.maps.map.util.FusedLocationSource;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -65,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     List<PolygonOverlay> polygonall = new ArrayList<>();
     InfoWindow infoWindow;
     NaverGeocoding naverGeocoding;
+    Naverlocation naverlocation;
     
 
     @Override
@@ -245,14 +249,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 AlertDialog.Builder dlg = new AlertDialog.Builder(MainActivity.this);
                 dlg.setTitle("주소 입력 창");
                 dlg.setView(dialogView);
-                EditText dlgEdtAddress = (EditText) dialogView.findViewById(R.id.addressedit);
-                String address = dlgEdtAddress.getText().toString();
+
                 dlg.setPositiveButton("마커 찍기",
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int which) {
-                                Toast.makeText(getApplication(), address, Toast.LENGTH_SHORT).show();
-                                //addressmarker.setPosition();
-                                //addressmarker.setMap(naverMap);
+                                EditText dlgEdtAddress = (EditText) dialogView.findViewById(R.id.addressedit);
+                                String address = dlgEdtAddress.getText().toString();
+
+                                naverlocation = new Naverlocation(MainActivity.this);
+
+                                naverlocation.execute(address);
+
+                                //LatLng addresslatlng = getlocation(address);
+                                //Toast.makeText(getApplication(), "위도 : " + addresslatlng.latitude + "/n경도 : " + addresslatlng.longitude, Toast.LENGTH_SHORT).show();
+
+
                             }
                 });
                 dlg.show();
@@ -260,6 +271,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
+    void markup(LatLng latLng) {
+        //Toast.makeText(getApplication(), "위도 : " + latLng.latitude + "/n" + "경도 : " + latLng.longitude, Toast.LENGTH_SHORT).show();
+        addressmarker.setPosition(latLng);
+        addressmarker.setMap(naverMap);
+    }
 
     void viewAddress(String address) {
         //TODO infowindow에 메시지를 입력하는 부분 구현
@@ -275,4 +291,5 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         infoWindow.open(infomarker);
     }
+
 }
